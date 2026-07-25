@@ -1,6 +1,6 @@
 # MySQL Enumeration & SQL Injection Cheat Sheet (VAPT Research Notes)
 
-> Personal research notes for authorized VAPT / lab practice on a self-hosted MySQL/MariaDB instance.
+> Personal research notes for authorized VAPT / lab practices.
 
 ---
 
