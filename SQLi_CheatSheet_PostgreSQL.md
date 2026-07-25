@@ -1,6 +1,6 @@
 # PostgreSQL Enumeration & SQL Injection Cheat Sheet (VAPT Research Notes)
 
-> Personal research notes for authorized VAPT / lab practice on a self-hosted PostgreSQL instance.
+> Personal research notes for authorized VAPT / lab practices.
 
 ---
 
