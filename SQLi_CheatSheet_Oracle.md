@@ -1,6 +1,6 @@
 # Oracle Database Enumeration & SQL Injection Cheat Sheet (VAPT Research Notes)
 
-> Personal research notes for authorized VAPT / lab practice on a self-hosted Oracle instance.
+> Personal research notes for authorized VAPT / lab practices.
 
 ---
 
