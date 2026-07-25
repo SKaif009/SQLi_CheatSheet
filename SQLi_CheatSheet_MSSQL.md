@@ -1,6 +1,6 @@
 # MSSQL Enumeration & SQL Injection Cheat Sheet (VAPT Research Notes)
 
-> Personal research notes for authorized VAPT / lab practice on a self-hosted MSSQL instance.
+> Personal research notes for authorized VAPT / lab practices.
 > Target engine: Microsoft SQL Server (T-SQL syntax).
 
 ---
