@@ -250,6 +250,7 @@ Useful for bypassing filters or safely transporting binary/string data through e
 
 ```sql
 SELECT CONVERT(VARBINARY(MAX), 'Kaif');
+' AND CONVERT(INT, @@version)=1--
 SELECT CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), 'Kaif'), 2);
 SELECT CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), (SELECT DB_NAME())), 2);
 ```
